@@ -20,22 +20,31 @@
 
   var jump = document.querySelector('.js-jump');
   if (jump) {
-    var chips = [].slice.call(jump.querySelectorAll('.chip')), lock = 0;
+    var last = '', bar = jump.querySelector('.chin'), chips = [].slice.call(jump.querySelectorAll('.chip')), lock = 0;
     function mark(id) {
       chips.forEach(function (c) {
         var on = c.getAttribute('href') === '#' + id;
         c.classList.toggle('on', on);
-        if (on) { c.setAttribute('aria-current', 'true'); c.scrollIntoView({ block: 'nearest', inline: 'center' }); } else c.removeAttribute('aria-current');
+        if (on) last = id;
+        if (on) { c.setAttribute('aria-current', 'true'); bar.scrollLeft = c.offsetLeft - (bar.clientWidth - c.offsetWidth) / 2; } else c.removeAttribute('aria-current');
       });
     }
     jump.addEventListener('click', function (e) {
       var c = e.target.closest('.chip'); if (!c) return;
-      lock = Date.now() + 1200; mark(c.getAttribute('href').slice(1));
+      var id = c.getAttribute('href').slice(1), t = document.getElementById(id); if (!t) return;
+      e.preventDefault();
+      var off = parseFloat(getComputedStyle(jump).top) + jump.offsetHeight + 12;
+      lock = 1; mark(id);
+      window.scrollTo({ top: t.getBoundingClientRect().top + window.pageYOffset - off, behavior: 'smooth' });
+      if (history.replaceState) history.replaceState(null, '', '#' + id);
     });
+    
     var secs = chips.map(function (c) { return document.querySelector(c.getAttribute('href')); }).filter(Boolean);
-    var last = '';
+    // after a chip tap the highlight stays put until the visitor scrolls by hand
+    function release() { lock = 0; }
+    ['wheel', 'touchstart', 'keydown'].forEach(function (ev) { window.addEventListener(ev, release, { passive: true }); });
     window.addEventListener('scroll', function () {
-      if (Date.now() < lock) return;
+      if (lock) return;
       var cur = secs[0];
       secs.forEach(function (s) { if (s.getBoundingClientRect().top <= 170) cur = s; });
       if (cur && cur.id !== last) { last = cur.id; mark(cur.id); }
